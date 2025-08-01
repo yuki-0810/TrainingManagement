@@ -186,19 +186,35 @@ CREATE POLICY "enable_update_for_group_members" ON family_groups
   );
 
 -- トレーニングメニューのポリシー
-CREATE POLICY "Users can view family training menus" ON training_menus
-  FOR SELECT USING (
+-- 既存のポリシーを削除
+DROP POLICY IF EXISTS "Users can view family training menus" ON training_menus;
+DROP POLICY IF EXISTS "Users can insert family training menus" ON training_menus;
+
+-- 新しいポリシーを作成
+CREATE POLICY "enable_select_for_family_members" ON training_menus
+  FOR SELECT TO authenticated
+  USING (
     family_group_id IN (
       SELECT family_group_id FROM user_profiles WHERE id = auth.uid()
     )
   );
 
-CREATE POLICY "Users can insert family training menus" ON training_menus
-  FOR INSERT WITH CHECK (
+CREATE POLICY "enable_insert_for_family_members" ON training_menus
+  FOR INSERT TO authenticated
+  WITH CHECK (
     family_group_id IN (
       SELECT family_group_id FROM user_profiles WHERE id = auth.uid()
     ) AND auth.uid() = created_by
   );
+
+CREATE POLICY "enable_update_for_creators" ON training_menus
+  FOR UPDATE TO authenticated
+  USING (auth.uid() = created_by)
+  WITH CHECK (auth.uid() = created_by);
+
+CREATE POLICY "enable_delete_for_creators" ON training_menus
+  FOR DELETE TO authenticated
+  USING (auth.uid() = created_by);
 
 -- トレーニング記録のポリシー
 CREATE POLICY "Users can view family training records" ON training_records

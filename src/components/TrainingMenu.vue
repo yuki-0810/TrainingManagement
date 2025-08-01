@@ -28,14 +28,13 @@ const difficultyLabels = {
   5: 'エキスパート'
 }
 
-const filteredMenus = ref([])
 const filterDifficulty = ref(0) // 0 = all
 
 const displayedMenus = computed(() => {
-  if (filterDifficulty.value === 0) {
+  if (filterDifficulty.value === 0 || filterDifficulty.value === '0') {
     return trainingMenus.value
   }
-  return trainingMenus.value.filter(menu => menu.difficulty_level === filterDifficulty.value)
+  return trainingMenus.value.filter(menu => menu.difficulty_level === parseInt(filterDifficulty.value))
 })
 
 onMounted(async () => {
@@ -366,8 +365,23 @@ const formatDuration = (minutes) => {
               </div>
               
               <div class="menu-actions">
-                <button @click="startEditing(menu)" class="btn-edit">編集</button>
-                <button @click="deleteMenu(menu.id, menu.name)" class="btn-delete">削除</button>
+                <button 
+                  v-if="menu.created_by === user?.id"
+                  @click="startEditing(menu)" 
+                  class="btn-edit"
+                >
+                  編集
+                </button>
+                <button 
+                  v-if="menu.created_by === user?.id"
+                  @click="deleteMenu(menu.id, menu.name)" 
+                  class="btn-delete"
+                >
+                  削除
+                </button>
+                <span v-if="menu.created_by !== user?.id" class="no-permission">
+                  作成者のみ編集可能
+                </span>
               </div>
             </div>
           </div>
@@ -611,6 +625,12 @@ const formatDuration = (minutes) => {
 
 .btn-delete:hover {
   background: #fee2e2;
+}
+
+.no-permission {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  font-style: italic;
 }
 
 .no-user, .no-family, .no-menus {

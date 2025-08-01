@@ -120,7 +120,8 @@ const monthlyStats = computed(() => {
 onMounted(async () => {
   await loadUserData()
   if (userProfile.value?.family_group_id) {
-    await Promise.all([loadFamilyMembers(), loadTrainingRecords()])
+    await loadFamilyMembers()
+    await loadTrainingRecords()
   }
 })
 
@@ -161,24 +162,53 @@ const loadTrainingRecords = async () => {
   try {
     const familyMemberIds = familyMembers.value.map(m => m.id)
     
-    const { data: records, error } = await supabase
+    if (familyMemberIds.length === 0) {
+      trainingRecords.value = []
+      return
+    }
+    
+    // まずトレーニング記録を取得
+    const { data: records, error: recordsError } = await supabase
       .from('training_records')
-      .select(`
-        *,
-        training_menus(name, difficulty_level)
-      `)
+      .select('*')
       .in('user_id', familyMemberIds)
       .order('completed_at', { ascending: false })
     
-    if (error) throw error
+    if (recordsError) throw recordsError
     
-    // ユーザー名を追加
+    if (!records || records.length === 0) {
+      trainingRecords.value = []
+      return
+    }
+    
+    // トレーニングメニュー情報を別途取得
+    const menuIds = [...new Set(records.map(r => r.training_menu_id).filter(Boolean))]
+    let menus = []
+    
+    if (menuIds.length > 0) {
+      const { data: menusData, error: menusError } = await supabase
+        .from('training_menus')
+        .select('id, name, difficulty_level')
+        .in('id', menuIds)
+      
+      if (menusError) {
+        console.warn('メニュー取得エラー:', menusError)
+      } else {
+        menus = menusData || []
+      }
+    }
+    
+    // データをマージ
     trainingRecords.value = records.map(record => ({
       ...record,
-      user_name: familyMembers.value.find(m => m.id === record.user_id)?.display_name || '不明'
+      user_name: familyMembers.value.find(m => m.id === record.user_id)?.display_name || '不明',
+      training_menus: menus.find(m => m.id === record.training_menu_id) || null
     }))
+    
+    console.log('読み込まれた記録数:', trainingRecords.value.length)
   } catch (error) {
     message.value = `記録読み込みエラー: ${error.message}`
+    console.error('記録読み込みエラー:', error)
   }
 }
 
@@ -188,10 +218,15 @@ const isToday = (date) => {
 }
 
 const getRecordsForDate = (date) => {
-  const dateStr = date.toDateString()
+  const targetYear = date.getFullYear()
+  const targetMonth = date.getMonth()
+  const targetDate = date.getDate()
+  
   return trainingRecords.value.filter(record => {
     const recordDate = new Date(record.completed_at)
-    return recordDate.toDateString() === dateStr
+    return recordDate.getFullYear() === targetYear &&
+           recordDate.getMonth() === targetMonth &&
+           recordDate.getDate() === targetDate
   })
 }
 
@@ -214,6 +249,24 @@ const navigateWeek = (direction) => {
 const goToToday = () => {
   currentDate.value = new Date()
   selectedDate.value = new Date()
+}
+
+const debugInfo = () => {
+  console.log('=== カレンダーデバッグ情報 ===')
+  console.log('家族メンバー:', familyMembers.value)
+  console.log('トレーニング記録:', trainingRecords.value)
+  console.log('現在の日付:', currentDate.value)
+  console.log('選択された日:', selectedDate.value)
+  
+  if (trainingRecords.value.length > 0) {
+    const sampleRecord = trainingRecords.value[0]
+    console.log('サンプル記録:', sampleRecord)
+    const recordDate = new Date(sampleRecord.completed_at)
+    console.log('記録日時:', recordDate)
+    console.log('今日の記録:', getRecordsForDate(new Date()))
+  }
+  
+  message.value = `デバッグ: ${familyMembers.value.length}人, ${trainingRecords.value.length}記録`
 }
 
 const formatDate = (date) => {
@@ -287,6 +340,13 @@ const getSatisfactionEmoji = (rating) => {
     </div>
     
     <div v-else class="calendar-content">
+      <!-- デバッグ情報 -->
+      <div v-if="message.includes('デバッグ')" class="debug-info">
+        <p>家族メンバー数: {{ familyMembers.length }}</p>
+        <p>記録数: {{ trainingRecords.length }}</p>
+        <p>選択された日付: {{ selectedDate ? formatDate(selectedDate) : 'なし' }}</p>
+      </div>
+      
       <!-- ナビゲーション -->
       <div class="calendar-nav">
         <button 
@@ -313,6 +373,7 @@ const getSatisfactionEmoji = (rating) => {
         </button>
         
         <button @click="goToToday" class="today-btn">今日</button>
+        <button @click="debugInfo" class="debug-btn">デバッグ</button>
       </div>
       
       <!-- フィルター -->
@@ -534,7 +595,7 @@ const getSatisfactionEmoji = (rating) => {
   font-size: 1.25rem;
 }
 
-.today-btn {
+.today-btn, .debug-btn {
   padding: 0.5rem 1rem;
   background: #3b82f6;
   color: white;
@@ -544,8 +605,24 @@ const getSatisfactionEmoji = (rating) => {
   font-size: 0.875rem;
 }
 
-.today-btn:hover {
+.today-btn:hover, .debug-btn:hover {
   background: #2563eb;
+}
+
+.debug-btn {
+  background: #f59e0b;
+}
+
+.debug-btn:hover {
+  background: #d97706;
+}
+
+.debug-info {
+  background: #fef3c7;
+  padding: 1rem;
+  border-radius: 0.375rem;
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
 }
 
 .filter-section {

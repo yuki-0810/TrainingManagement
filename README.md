@@ -133,16 +133,31 @@ CREATE POLICY "Users can view their family group" ON family_groups
     )
   );
 
--- 既存のポリシーを削除（もしあれば）
+-- 家族グループの適切なRLSポリシー
+-- まず既存のポリシーをすべて削除
+DROP POLICY IF EXISTS "Users can view their family group" ON family_groups;
 DROP POLICY IF EXISTS "Authenticated users can create family groups" ON family_groups;
+DROP POLICY IF EXISTS "Users can update family groups" ON family_groups;
 
--- 新しいポリシーを作成
-CREATE POLICY "Authenticated users can create family groups" ON family_groups
-  FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
+-- 新しい適切なポリシーを作成
+-- 1. 認証済みユーザーは家族グループを作成できる（シンプルな条件）
+CREATE POLICY "enable_insert_for_authenticated_users" ON family_groups
+  FOR INSERT TO authenticated
+  WITH CHECK (true);
 
--- さらに、家族グループの更新も許可
-CREATE POLICY "Users can update family groups" ON family_groups
-  FOR UPDATE USING (
+-- 2. ユーザーは自分が所属する家族グループを閲覧できる + 招待コードで検索可能
+CREATE POLICY "enable_select_for_group_members" ON family_groups
+  FOR SELECT TO authenticated
+  USING (
+    id IN (
+      SELECT family_group_id FROM user_profiles WHERE id = auth.uid()
+    ) OR auth.uid() IS NOT NULL  -- 招待コード検索のため
+  );
+
+-- 3. ユーザーは自分が所属する家族グループを更新できる
+CREATE POLICY "enable_update_for_group_members" ON family_groups
+  FOR UPDATE TO authenticated
+  USING (
     id IN (
       SELECT family_group_id FROM user_profiles WHERE id = auth.uid()
     )

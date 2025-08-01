@@ -66,19 +66,43 @@ const loadUserData = async () => {
 
 const loadTrainingMenus = async () => {
   try {
-    const { data, error } = await supabase
+    // まずトレーニングメニューを取得
+    const { data: menus, error: menusError } = await supabase
       .from('training_menus')
-      .select(`
-        *,
-        user_profiles!training_menus_created_by_fkey(display_name)
-      `)
+      .select('*')
       .eq('family_group_id', userProfile.value.family_group_id)
       .order('created_at', { ascending: false })
     
-    if (error) throw error
-    trainingMenus.value = data || []
+    if (menusError) throw menusError
+    
+    // 作成者の情報を別途取得
+    if (menus && menus.length > 0) {
+      const creatorIds = [...new Set(menus.map(menu => menu.created_by).filter(Boolean))]
+      
+      if (creatorIds.length > 0) {
+        const { data: profiles, error: profilesError } = await supabase
+          .from('user_profiles')
+          .select('id, display_name')
+          .in('id', creatorIds)
+        
+        if (profilesError) {
+          console.warn('プロファイル取得エラー:', profilesError)
+        }
+        
+        // メニューに作成者情報をマージ
+        trainingMenus.value = menus.map(menu => ({
+          ...menu,
+          creator_name: profiles?.find(p => p.id === menu.created_by)?.display_name || '不明'
+        }))
+      } else {
+        trainingMenus.value = menus.map(menu => ({ ...menu, creator_name: '不明' }))
+      }
+    } else {
+      trainingMenus.value = []
+    }
   } catch (error) {
     message.value = `メニュー読み込みエラー: ${error.message}`
+    trainingMenus.value = []
   }
 }
 
@@ -337,7 +361,7 @@ const formatDuration = (minutes) => {
             
             <div class="menu-footer">
               <div class="creator-info">
-                <span>作成者: {{ menu.user_profiles?.display_name || '不明' }}</span>
+                <span>作成者: {{ menu.creator_name }}</span>
                 <span class="created-date">{{ new Date(menu.created_at).toLocaleDateString('ja-JP') }}</span>
               </div>
               

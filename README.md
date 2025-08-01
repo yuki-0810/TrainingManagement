@@ -58,6 +58,11 @@ CREATE TABLE training_menus (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- 外部キー制約を明示的に追加（もし作成されていない場合）
+ALTER TABLE training_menus 
+ADD CONSTRAINT training_menus_created_by_fkey 
+FOREIGN KEY (created_by) REFERENCES auth.users(id);
+
 -- トレーニング記録テーブル
 CREATE TABLE training_records (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,

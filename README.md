@@ -96,6 +96,23 @@ ALTER TABLE family_groups ENABLE ROW LEVEL SECURITY;
 
 -- デバッグ用: 一時的にRLSを無効にする場合（本番環境では使用しない）
 -- ALTER TABLE family_groups DISABLE ROW LEVEL SECURITY;
+
+-- RLS状態確認用SQL
+-- テーブルのRLS有効化状況を確認
+SELECT schemaname, tablename, rowsecurity 
+FROM pg_tables 
+WHERE tablename IN ('family_groups', 'user_profiles', 'training_menus', 'training_records', 'notification_settings', 'test_items');
+
+-- 特定テーブルのポリシー一覧を確認
+SELECT tablename, policyname, permissive, roles, cmd, qual, with_check
+FROM pg_policies 
+WHERE tablename = 'family_groups';
+
+-- 全テーブルのポリシー一覧を確認
+SELECT tablename, policyname, permissive, roles, cmd
+FROM pg_policies 
+WHERE tablename IN ('family_groups', 'user_profiles', 'training_menus', 'training_records', 'notification_settings', 'test_items')
+ORDER BY tablename, policyname;
 ALTER TABLE user_profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE training_menus ENABLE ROW LEVEL SECURITY;
 ALTER TABLE training_records ENABLE ROW LEVEL SECURITY;

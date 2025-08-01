@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue'
 import SupabaseTest from './SupabaseTest.vue'
 import UserProfile from './UserProfile.vue'
 import FamilyManager from './FamilyManager.vue'
+import TrainingMenu from './TrainingMenu.vue'
 import { supabase } from '../supabase.js'
 
 const appTitle = ref('家族向けトレーニング管理')
@@ -72,6 +73,13 @@ const handleFamilyUpdated = () => {
             家族グループ
           </button>
           <button 
+            v-if="user && userProfile && userProfile.family_group_id"
+            @click="switchTab('menu')" 
+            :class="['tab-btn', { active: activeTab === 'menu' }]"
+          >
+            メニュー管理
+          </button>
+          <button 
             @click="switchTab('test')" 
             :class="['tab-btn', { active: activeTab === 'test' }]"
           >
@@ -120,7 +128,13 @@ const handleFamilyUpdated = () => {
               </div>
               
               <div class="action-buttons">
-                <button class="btn btn-primary">トレーニング開始</button>
+                <button 
+                  v-if="userProfile.family_group_id"
+                  @click="switchTab('menu')"
+                  class="btn btn-primary"
+                >
+                  メニュー管理
+                </button>
                 <button class="btn btn-secondary">記録を見る</button>
               </div>
             </div>
@@ -139,6 +153,11 @@ const handleFamilyUpdated = () => {
         <!-- 家族グループタブ -->
         <div v-if="activeTab === 'family'" class="tab-content">
           <FamilyManager @family-updated="handleFamilyUpdated" />
+        </div>
+        
+        <!-- メニュー管理タブ -->
+        <div v-if="activeTab === 'menu'" class="tab-content">
+          <TrainingMenu />
         </div>
         
         <!-- Supabaseテストタブ -->

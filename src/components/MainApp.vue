@@ -5,6 +5,7 @@ import UserProfile from './UserProfile.vue'
 import FamilyManager from './FamilyManager.vue'
 import TrainingMenu from './TrainingMenu.vue'
 import TrainingRecord from './TrainingRecord.vue'
+import TrainingCalendar from './TrainingCalendar.vue'
 import { supabase } from '../supabase.js'
 
 const appTitle = ref('家族向けトレーニング管理')
@@ -88,6 +89,13 @@ const handleFamilyUpdated = () => {
             記録管理
           </button>
           <button 
+            v-if="user && userProfile && userProfile.family_group_id"
+            @click="switchTab('calendar')" 
+            :class="['tab-btn', { active: activeTab === 'calendar' }]"
+          >
+            カレンダー
+          </button>
+          <button 
             @click="switchTab('test')" 
             :class="['tab-btn', { active: activeTab === 'test' }]"
           >
@@ -121,9 +129,9 @@ const handleFamilyUpdated = () => {
                   <h3>📅 今日のメニュー</h3>
                   <p>個人に最適化されたトレーニングメニューを確認</p>
                 </div>
-                <div class="feature-card">
-                  <h3>📊 記録管理</h3>
-                  <p>トレーニング実施記録を簡単に入力・管理</p>
+                <div class="feature-card" @click="switchTab('calendar')">
+                  <h3>📊 進捗確認</h3>
+                  <p>カレンダーでトレーニング記録を視覚的に確認</p>
                 </div>
                 <div class="feature-card">
                   <h3>👥 家族共有</h3>
@@ -177,6 +185,11 @@ const handleFamilyUpdated = () => {
         <!-- 記録管理タブ -->
         <div v-if="activeTab === 'record'" class="tab-content">
           <TrainingRecord />
+        </div>
+        
+        <!-- カレンダータブ -->
+        <div v-if="activeTab === 'calendar'" class="tab-content">
+          <TrainingCalendar />
         </div>
         
         <!-- Supabaseテストタブ -->
@@ -289,6 +302,10 @@ const handleFamilyUpdated = () => {
 
 .feature-card:hover {
   transform: translateY(-2px);
+}
+
+.feature-card {
+  cursor: pointer;
 }
 
 .feature-card h3 {

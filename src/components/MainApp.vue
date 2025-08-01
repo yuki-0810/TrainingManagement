@@ -1,13 +1,44 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import SupabaseTest from './SupabaseTest.vue'
+import UserProfile from './UserProfile.vue'
+import FamilyManager from './FamilyManager.vue'
+import { supabase } from '../supabase.js'
 
 const appTitle = ref('家族向けトレーニング管理')
 const subtitle = ref('家族でトレーニングを継続しよう')
 const activeTab = ref('home')
+const user = ref(null)
+const userProfile = ref(null)
+
+onMounted(async () => {
+  await checkUser()
+})
+
+const checkUser = async () => {
+  const { data: { user: currentUser } } = await supabase.auth.getUser()
+  user.value = currentUser
+  
+  if (currentUser) {
+    const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .eq('id', currentUser.id)
+      .single()
+    userProfile.value = profile
+  }
+}
 
 const switchTab = (tab) => {
   activeTab.value = tab
+}
+
+const handleProfileUpdated = (profile) => {
+  userProfile.value = profile
+}
+
+const handleFamilyUpdated = () => {
+  // 家族情報が更新された時の処理
 }
 </script>
 
@@ -27,6 +58,20 @@ const switchTab = (tab) => {
             ホーム
           </button>
           <button 
+            v-if="user"
+            @click="switchTab('profile')" 
+            :class="['tab-btn', { active: activeTab === 'profile' }]"
+          >
+            プロファイル
+          </button>
+          <button 
+            v-if="user && userProfile"
+            @click="switchTab('family')" 
+            :class="['tab-btn', { active: activeTab === 'family' }]"
+          >
+            家族グループ
+          </button>
+          <button 
             @click="switchTab('test')" 
             :class="['tab-btn', { active: activeTab === 'test' }]"
           >
@@ -44,34 +89,56 @@ const switchTab = (tab) => {
             <h2>トレーニング管理を始めましょう</h2>
             <p>家族でトレーニングを記録・共有して、みんなで健康を維持しましょう。</p>
             
-            <div class="feature-grid">
-              <div class="feature-card">
-                <h3>📅 今日のメニュー</h3>
-                <p>個人に最適化されたトレーニングメニューを確認</p>
-              </div>
-              <div class="feature-card">
-                <h3>📊 記録管理</h3>
-                <p>トレーニング実施記録を簡単に入力・管理</p>
-              </div>
-              <div class="feature-card">
-                <h3>👥 家族共有</h3>
-                <p>家族間でトレーニング記録を共有してモチベーション向上</p>
-              </div>
-              <div class="feature-card">
-                <h3>🔔 通知機能</h3>
-                <p>サボり防止のためのLINE通知連携</p>
-              </div>
+            <div v-if="!user" class="auth-required">
+              <p>アプリを使用するにはログインが必要です</p>
+              <button @click="switchTab('test')" class="btn btn-primary">ログイン・サインアップ</button>
             </div>
             
-            <div class="action-buttons">
-              <button class="btn btn-primary">トレーニング開始</button>
-              <button class="btn btn-secondary">記録を見る</button>
+            <div v-else-if="!userProfile" class="profile-required">
+              <p>プロファイルを設定してアプリを開始しましょう</p>
+              <button @click="switchTab('profile')" class="btn btn-primary">プロファイル設定</button>
+            </div>
+            
+            <div v-else class="app-ready">
+              <div class="feature-grid">
+                <div class="feature-card">
+                  <h3>📅 今日のメニュー</h3>
+                  <p>個人に最適化されたトレーニングメニューを確認</p>
+                </div>
+                <div class="feature-card">
+                  <h3>📊 記録管理</h3>
+                  <p>トレーニング実施記録を簡単に入力・管理</p>
+                </div>
+                <div class="feature-card">
+                  <h3>👥 家族共有</h3>
+                  <p>家族間でトレーニング記録を共有してモチベーション向上</p>
+                </div>
+                <div class="feature-card">
+                  <h3>🔔 通知機能</h3>
+                  <p>サボり防止のためのLINE通知連携</p>
+                </div>
+              </div>
+              
+              <div class="action-buttons">
+                <button class="btn btn-primary">トレーニング開始</button>
+                <button class="btn btn-secondary">記録を見る</button>
+              </div>
             </div>
             
             <div class="test-note">
               <p>💡 <strong>開発中:</strong> 上部の「Supabaseテスト」タブから接続・認証・DB操作をテストできます</p>
             </div>
           </div>
+        </div>
+        
+        <!-- プロファイルタブ -->
+        <div v-if="activeTab === 'profile'" class="tab-content">
+          <UserProfile @profile-updated="handleProfileUpdated" />
+        </div>
+        
+        <!-- 家族グループタブ -->
+        <div v-if="activeTab === 'family'" class="tab-content">
+          <FamilyManager @family-updated="handleFamilyUpdated" />
         </div>
         
         <!-- Supabaseテストタブ -->
@@ -208,6 +275,21 @@ const switchTab = (tab) => {
   padding: 0.75rem 2rem;
   font-size: 1.125rem;
   font-weight: 500;
+}
+
+.auth-required, .profile-required {
+  text-align: center;
+  padding: 3rem 2rem;
+  background: #f0f9ff;
+  border-radius: 0.75rem;
+  border: 2px solid #3b82f6;
+  margin-bottom: 2rem;
+}
+
+.auth-required p, .profile-required p {
+  font-size: 1.125rem;
+  color: #1e40af;
+  margin-bottom: 1.5rem;
 }
 
 .test-note {

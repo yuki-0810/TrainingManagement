@@ -130,6 +130,9 @@ CREATE POLICY "Users can view their family group" ON family_groups
     )
   );
 
+CREATE POLICY "Authenticated users can create family groups" ON family_groups
+  FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+
 -- トレーニングメニューのポリシー
 CREATE POLICY "Users can view family training menus" ON training_menus
   FOR SELECT USING (

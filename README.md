@@ -93,6 +93,9 @@ CREATE TABLE test_items (
 
 -- RLS (Row Level Security) 有効化
 ALTER TABLE family_groups ENABLE ROW LEVEL SECURITY;
+
+-- デバッグ用: 一時的にRLSを無効にする場合（本番環境では使用しない）
+-- ALTER TABLE family_groups DISABLE ROW LEVEL SECURITY;
 ALTER TABLE user_profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE training_menus ENABLE ROW LEVEL SECURITY;
 ALTER TABLE training_records ENABLE ROW LEVEL SECURITY;
@@ -130,8 +133,20 @@ CREATE POLICY "Users can view their family group" ON family_groups
     )
   );
 
+-- 既存のポリシーを削除（もしあれば）
+DROP POLICY IF EXISTS "Authenticated users can create family groups" ON family_groups;
+
+-- 新しいポリシーを作成
 CREATE POLICY "Authenticated users can create family groups" ON family_groups
-  FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+  FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
+
+-- さらに、家族グループの更新も許可
+CREATE POLICY "Users can update family groups" ON family_groups
+  FOR UPDATE USING (
+    id IN (
+      SELECT family_group_id FROM user_profiles WHERE id = auth.uid()
+    )
+  );
 
 -- トレーニングメニューのポリシー
 CREATE POLICY "Users can view family training menus" ON training_menus

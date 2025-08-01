@@ -217,8 +217,14 @@ CREATE POLICY "enable_delete_for_creators" ON training_menus
   USING (auth.uid() = created_by);
 
 -- トレーニング記録のポリシー
-CREATE POLICY "Users can view family training records" ON training_records
-  FOR SELECT USING (
+-- 既存のポリシーを削除
+DROP POLICY IF EXISTS "Users can view family training records" ON training_records;
+DROP POLICY IF EXISTS "Users can insert own training records" ON training_records;
+
+-- 新しいポリシーを作成
+CREATE POLICY "enable_select_for_family_members" ON training_records
+  FOR SELECT TO authenticated
+  USING (
     user_id IN (
       SELECT id FROM user_profiles 
       WHERE family_group_id = (
@@ -227,8 +233,13 @@ CREATE POLICY "Users can view family training records" ON training_records
     )
   );
 
-CREATE POLICY "Users can insert own training records" ON training_records
-  FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "enable_insert_for_authenticated_users" ON training_records
+  FOR INSERT TO authenticated
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "enable_delete_for_record_owners" ON training_records
+  FOR DELETE TO authenticated
+  USING (auth.uid() = user_id);
 
 -- 通知設定のポリシー
 CREATE POLICY "Users can manage own notification settings" ON notification_settings
